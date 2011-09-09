@@ -1,0 +1,85 @@
+
+#include "xinput.hsp"
+
+if xinput_is_enabled() == 0 {
+  dialog "XInput is unavailable."
+  end
+}
+
+font "Arial", 16
+
+repeat
+  redraw 0
+
+  xinput_update
+
+  color
+  boxf
+
+  hsvcolor , , 255
+
+  pos 0, 0
+  mes "Connected"
+  mes "Left"
+  mes "  X"
+  mes "  Y"
+  mes "Right"
+  mes "  X"
+  mes "  Y"
+  mes "Button"
+  mes "  ^"
+  mes "  v"
+  mes "  <"
+  mes "  >"
+  mes "  A"
+  mes "  B"
+  mes "  X"
+  mes "  Y"
+  mes "  START"
+  mes "  BACK"
+  mes "  L"
+  mes "  R"
+  mes "Trigger"
+  mes "  L"
+  mes "  R"
+  mes "Stick"
+  mes "  Trigger"
+  mes "  Press"
+
+  repeat XINPUT_HSP_MAX_CONTROLLERS
+    pos cnt * 80 + 120, 0
+    mes xinput_is_connected(cnt)
+    mes
+    mes xinput_left_stick_x(cnt)
+    mes xinput_left_stick_y(cnt)
+    mes
+    mes xinput_right_stick_x(cnt)
+    mes xinput_right_stick_y(cnt)
+    mes
+    mes xinput_button(cnt, XINPUT_GAMEPAD_DPAD_UP)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_DPAD_DOWN)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_DPAD_LEFT)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_DPAD_RIGHT)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_A)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_B)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_X)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_Y)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_START)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_BACK)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_LEFT_SHOULDER)
+    mes xinput_button(cnt, XINPUT_GAMEPAD_RIGHT_SHOULDER)
+    mes
+    mes xinput_left_trigger(cnt)
+    mes xinput_right_trigger(cnt)
+    mes
+    xinput_stick in, 0, 1, cnt
+    mes in
+    xinput_stick in, 1023, 1, cnt
+    mes in
+    xinput_vibrate cnt, xinput_left_trigger(cnt), xinput_right_trigger(cnt)
+  loop
+
+  redraw
+  await 30
+loop
+

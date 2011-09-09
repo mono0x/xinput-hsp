@@ -1,0 +1,194 @@
+/*
+ * Copyright (c) 2011 mono
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#ifndef XINPUT_HSP_INCLUDED__
+#define XINPUT_HSP_INCLUDED__
+
+#module
+
+#uselib "xinput1_3"
+#func XInputGetState "XInputGetState" int, var
+#func XInputSetState "XInputSetState" int, var
+
+#const ERROR_SUCCESS              0x000
+#const ERROR_DEVICE_NOT_CONNECTED 0x48f
+
+#const XINPUT_FLAG_GAMEPAD 0x1
+
+#const global XINPUT_GAMEPAD_DPAD_UP          0x00000001
+#const global XINPUT_GAMEPAD_DPAD_DOWN        0x00000002
+#const global XINPUT_GAMEPAD_DPAD_LEFT        0x00000004
+#const global XINPUT_GAMEPAD_DPAD_RIGHT       0x00000008
+#const global XINPUT_GAMEPAD_START            0x00000010
+#const global XINPUT_GAMEPAD_BACK             0x00000020
+#const global XINPUT_GAMEPAD_LEFT_THUMB       0x00000040
+#const global XINPUT_GAMEPAD_RIGHT_THUMB      0x00000080
+#const global XINPUT_GAMEPAD_LEFT_SHOULDER    0x0100
+#const global XINPUT_GAMEPAD_RIGHT_SHOULDER   0x0200
+#const global XINPUT_GAMEPAD_A                0x1000
+#const global XINPUT_GAMEPAD_B                0x2000
+#const global XINPUT_GAMEPAD_X                0x4000
+#const global XINPUT_GAMEPAD_Y                0x8000
+
+#define XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE  7849
+#define XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE 8689
+#define XINPUT_GAMEPAD_TRIGGER_THRESHOLD    30
+
+#const global XINPUT_HSP_MAX_CONTROLLERS 4
+
+#const global XINPUT_HSP_STICK_MAX_BUTTONS 6
+
+#const global XINPUT_HSP_STICK_MODE_LEFT_STICK  0
+#const global XINPUT_HSP_STICK_MODE_RIGHT_STICK 1
+#const global XINPUT_HSP_STICK_MODE_DPAD        2
+
+#deffunc xinput_init_
+  dim state, 4, XINPUT_HSP_MAX_CONTROLLERS
+  dim state_prev, 4, XINPUT_HSP_MAX_CONTROLLERS
+  dim connected, XINPUT_HSP_MAX_CONTROLLERS
+  dim vibrate, XINPUT_HSP_MAX_CONTROLLERS
+  dim stick_assign, XINPUT_HSP_STICK_MAX_BUTTONS, XINPUT_HSP_MAX_CONTROLLERS
+  repeat XINPUT_HSP_MAX_CONTROLLERS
+    stick_assign(0, cnt) = XINPUT_GAMEPAD_A
+    stick_assign(1, cnt) = XINPUT_GAMEPAD_START
+    stick_assign(2, cnt) = XINPUT_GAMEPAD_B
+    stick_assign(3, cnt) = XINPUT_GAMEPAD_BACK
+    stick_assign(4, cnt) = XINPUT_GAMEPAD_LEFT_SHOULDER
+    stick_assign(5, cnt) = XINPUT_GAMEPAD_RIGHT_SHOULDER
+  loop
+  dim stick_mode, XINPUT_HSP_MAX_CONTROLLERS
+  return
+
+#deffunc xinput_update
+  memcpy state_prev, state, 4 * 4 * XINPUT_HSP_MAX_CONTROLLERS
+  if xinput_is_enabled() {
+    repeat XINPUT_HSP_MAX_CONTROLLERS
+      XInputGetState cnt, state(0, cnt)
+      connected(cnt) = (stat == ERROR_SUCCESS)
+      if connected(cnt) {
+        XInputSetState cnt, vibrate(cnt)
+      }
+    loop
+  }
+  return
+
+#deffunc xinput_vibrate int n, double left, double right
+  vibrate(n) = limit(left * 65535, 0, 65535) | (limit(right * 65535, 0, 65535) << 16)
+  return
+
+#defcfunc xinput_is_enabled
+  return varptr(XInputGetState) != 0
+
+#defcfunc xinput_is_connected int n
+  return connected(n)
+
+#defcfunc xinput_left_stick_x int n
+  return xinput_analog_stick_(state(2, n) << 16 >> 16)
+
+#defcfunc xinput_left_stick_y int n
+  return xinput_analog_stick_(state(2, n) >> 16)
+
+#defcfunc xinput_right_stick_x int n
+  return xinput_analog_stick_(state(3, n) << 16 >> 16)
+
+#defcfunc xinput_right_stick_y int n
+  return xinput_analog_stick_(state(3, n) >> 16)
+
+#defcfunc xinput_left_stick_x_prev_ int n
+  return xinput_analog_stick_(state_prev(2, n) << 16 >> 16)
+
+#defcfunc xinput_left_stick_y_prev_ int n
+  return xinput_analog_stick_(state_prev(2, n) >> 16)
+
+#defcfunc xinput_right_stick_x_prev_ int n
+  return xinput_analog_stick_(state_prev(3, n) << 16 >> 16)
+
+#defcfunc xinput_right_stick_y_prev_ int n
+  return xinput_analog_stick_(state_prev(3, n) >> 16)
+
+#defcfunc xinput_analog_stick_ int raw
+  if abs(raw) < XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE {
+    return 0.0
+  }
+  return limitf(double(raw) / 32768, -1, 1)
+
+#defcfunc xinput_left_trigger int n
+  return limitf(double((state(1, n) >> 16) & 0xff) / 255, 0, 255)
+
+#defcfunc xinput_right_trigger int n
+  return limitf(double((state(1, n) >> 24) & 0xff) / 255, 0, 255)
+
+#defcfunc xinput_button int n, int mask, int trigger
+  return ((state(1, n) & mask) != 0) & (trigger == 0 | (state_prev(1, n) & mask) == 0)
+
+#deffunc xinput_stick var result, int trigger, int active, int n
+  result = 0
+  if active != 0 & ginfo_act < 0 {
+    return
+  }
+
+  if stick_mode(n) == XINPUT_HSP_STICK_MODE_LEFT_STICK {
+    result |= 1 * ((xinput_left_stick_x(n) < -0.5) & ((trigger & 1) != 0 | xinput_left_stick_x_prev_(n) >= -0.5))
+    result |= 2 * ((xinput_left_stick_y(n) >  0.5) & ((trigger & 2) != 0 | xinput_left_stick_y_prev_(n) <=  0.5))
+    result |= 4 * ((xinput_left_stick_x(n) >  0.5) & ((trigger & 4) != 0 | xinput_left_stick_x_prev_(n) <=  0.5))
+    result |= 8 * ((xinput_left_stick_y(n) < -0.5) & ((trigger & 8) != 0 | xinput_left_stick_y_prev_(n) >= -0.5))
+  }
+  else : if stick_mode(n) == XINPUT_HSP_STICK_MODE_RIGHT_STICK {
+    result |= 1 * ((xinput_right_stick_x(n) < -0.5) & ((trigger & 1) != 0 | xinput_right_stick_x_prev_(n) >= -0.5))
+    result |= 2 * ((xinput_right_stick_y(n) >  0.5) & ((trigger & 2) != 0 | xinput_right_stick_y_prev_(n) <=  0.5))
+    result |= 4 * ((xinput_right_stick_x(n) >  0.5) & ((trigger & 4) != 0 | xinput_right_stick_x_prev_(n) <=  0.5))
+    result |= 8 * ((xinput_right_stick_y(n) < -0.5) & ((trigger & 8) != 0 | xinput_right_stick_y_prev_(n) >= -0.5))
+  }
+  else : if stick_mode(n) == XINPUT_HSP_STICK_MODE_DPAD {
+    result |= 1 * xinput_button(n, XINPUT_GAMEPAD_DPAD_LEFT,  (trigger & 1) == 0)
+    result |= 2 * xinput_button(n, XINPUT_GAMEPAD_DPAD_UP,    (trigger & 2) == 0)
+    result |= 4 * xinput_button(n, XINPUT_GAMEPAD_DPAD_RIGHT, (trigger & 4) == 0)
+    result |= 8 * xinput_button(n, XINPUT_GAMEPAD_DPAD_DOWN,  (trigger & 8) == 0)
+  }
+
+  repeat 6
+    mask = 1 << (cnt + 4)
+    result |= mask * xinput_button(n, stick_assign(cnt, n), (trigger & mask) == 0)
+  loop
+  return
+
+#deffunc xinput_stick_assign int n, int i, int assign
+  mask = 16
+  repeat XINPUT_HSP_STICK_MAX_BUTTONS
+    if i & mask {
+      stick_assign(cnt, n) = assign
+      break
+    }
+    mask <<= 1
+  loop
+  return
+
+#deffunc xinput_stick_mode int n, int mode
+  stick_mode(n) = mode
+  return
+
+#global
+
+xinput_init_
+
+#endif
+
